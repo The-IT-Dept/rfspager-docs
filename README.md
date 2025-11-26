@@ -22,6 +22,7 @@ Before you begin, make sure you have:
 
 **RTL-SDR Dongle:**
 - [NooElec NESDR SMArt Bundle](https://www.amazon.com.au/NooElec-NESDR-SMArt-Bundle-R820T2-Based/dp/B01GDN1T4S/) - Amazon AU
+- [RTL-SDR Blog V3 RTL2832 1PPM TCXO HF BiasT SMA + Antennas](https://www.ebay.com.au/itm/283144516411) - eBay AU
 
 > **Note:** You'll need one RTL-SDR dongle per service. To monitor both RFS and FRNSW simultaneously, purchase two dongles.
 
