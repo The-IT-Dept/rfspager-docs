@@ -26,19 +26,20 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# When invoked via `curl ... | sudo bash`, stdin is the pipe (the script itself),
-# not the user's terminal — every `read` would return empty and the prompt loops
-# would spin forever. Reattach stdin to the controlling terminal so prompts work.
-if [ ! -t 0 ]; then
-    if [ -r /dev/tty ]; then
-        exec </dev/tty
-    else
-        echo -e "${RED}Error: No terminal available for interactive prompts.${NC}"
-        echo "Run the installer directly instead of piping it, e.g.:"
-        echo "  curl -fsSL https://raw.githubusercontent.com/the-it-dept/rfspager-docs/main/agent.sh -o agent.sh"
-        echo "  sudo bash agent.sh"
-        exit 1
-    fi
+# When invoked via `curl ... | sudo bash`, fd 0 is the pipe carrying the script
+# itself — bash reads it incrementally. We must NOT replace fd 0 with /dev/tty
+# (that would make bash try to read further script lines from the terminal and
+# hang). Instead, open /dev/tty on fd 3 and have each `read` use it explicitly.
+if [ -t 0 ]; then
+    exec 3<&0
+elif [ -r /dev/tty ]; then
+    exec 3</dev/tty
+else
+    echo -e "${RED}Error: No terminal available for interactive prompts.${NC}"
+    echo "Run the installer directly instead of piping it, e.g.:"
+    echo "  curl -fsSL https://raw.githubusercontent.com/the-it-dept/rfspager-docs/main/agent.sh -o agent.sh"
+    echo "  sudo bash agent.sh"
+    exit 1
 fi
 
 echo -e "${CYAN}"
@@ -162,7 +163,7 @@ if [ "$RTL_COUNT" -eq 0 ]; then
     echo "Please ensure your RTL-SDR dongle(s) are plugged in."
     echo "If you just plugged them in, you may need to reboot first."
     echo
-    read -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
+    read -u 3 -p "Continue anyway? (y/N): " CONTINUE_ANYWAY
     if [[ ! "$CONTINUE_ANYWAY" =~ ^[Yy]$ ]]; then
         echo "Installation cancelled. Please connect your RTL-SDR device(s) and try again."
         exit 1
@@ -185,7 +186,7 @@ echo
 
 # Get API Key
 while true; do
-    if ! read -p "Enter your RFSPager API Key: " API_KEY; then
+    if ! read -u 3 -p "Enter your RFSPager API Key: " API_KEY; then
         echo -e "${RED}Error: stdin closed before API key was entered.${NC}" >&2
         exit 1
     fi
@@ -201,7 +202,7 @@ echo
 echo "Enter a site name for this agent (e.g., 'hornsby', 'central-coast')"
 echo "This will be used to identify your agent in the system."
 while true; do
-    if ! read -p "Site Name: " SITE_NAME; then
+    if ! read -u 3 -p "Site Name: " SITE_NAME; then
         echo -e "${RED}Error: stdin closed before site name was entered.${NC}" >&2
         exit 1
     fi
@@ -227,7 +228,7 @@ if [ "$RTL_COUNT" -ge 2 ]; then
     echo "  3) Both RFS and FRNSW (requires 2 RTL-SDR devices)"
     echo
     while true; do
-        if ! read -p "Select option [1-3]: " SERVICE_CHOICE; then
+        if ! read -u 3 -p "Select option [1-3]: " SERVICE_CHOICE; then
             echo -e "${RED}Error: stdin closed before a service was selected.${NC}" >&2
             exit 1
         fi
@@ -245,7 +246,7 @@ else
     echo "  2) FRNSW  (Fire and Rescue NSW - 148.9625 MHz)"
     echo
     while true; do
-        if ! read -p "Select option [1-2]: " SERVICE_CHOICE; then
+        if ! read -u 3 -p "Select option [1-2]: " SERVICE_CHOICE; then
             echo -e "${RED}Error: stdin closed before a service was selected.${NC}" >&2
             exit 1
         fi
