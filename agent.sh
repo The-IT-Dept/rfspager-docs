@@ -26,6 +26,21 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# When invoked via `curl ... | sudo bash`, stdin is the pipe (the script itself),
+# not the user's terminal — every `read` would return empty and the prompt loops
+# would spin forever. Reattach stdin to the controlling terminal so prompts work.
+if [ ! -t 0 ]; then
+    if [ -r /dev/tty ]; then
+        exec </dev/tty
+    else
+        echo -e "${RED}Error: No terminal available for interactive prompts.${NC}"
+        echo "Run the installer directly instead of piping it, e.g.:"
+        echo "  curl -fsSL https://raw.githubusercontent.com/the-it-dept/rfspager-docs/main/agent.sh -o agent.sh"
+        echo "  sudo bash agent.sh"
+        exit 1
+    fi
+fi
+
 echo -e "${CYAN}"
 echo "  ____  _____ ____  ____                           "
 echo " |  _ \|  ___/ ___||  _ \ __ _  __ _  ___ _ __     "
@@ -170,7 +185,10 @@ echo
 
 # Get API Key
 while true; do
-    read -p "Enter your RFSPager API Key: " API_KEY
+    if ! read -p "Enter your RFSPager API Key: " API_KEY; then
+        echo -e "${RED}Error: stdin closed before API key was entered.${NC}" >&2
+        exit 1
+    fi
     if [ -z "$API_KEY" ]; then
         echo -e "${RED}API Key cannot be empty. Please try again.${NC}"
     else
@@ -183,7 +201,10 @@ echo
 echo "Enter a site name for this agent (e.g., 'hornsby', 'central-coast')"
 echo "This will be used to identify your agent in the system."
 while true; do
-    read -p "Site Name: " SITE_NAME
+    if ! read -p "Site Name: " SITE_NAME; then
+        echo -e "${RED}Error: stdin closed before site name was entered.${NC}" >&2
+        exit 1
+    fi
     if [ -z "$SITE_NAME" ]; then
         echo -e "${RED}Site name cannot be empty. Please try again.${NC}"
     else
@@ -206,7 +227,10 @@ if [ "$RTL_COUNT" -ge 2 ]; then
     echo "  3) Both RFS and FRNSW (requires 2 RTL-SDR devices)"
     echo
     while true; do
-        read -p "Select option [1-3]: " SERVICE_CHOICE
+        if ! read -p "Select option [1-3]: " SERVICE_CHOICE; then
+            echo -e "${RED}Error: stdin closed before a service was selected.${NC}" >&2
+            exit 1
+        fi
         case $SERVICE_CHOICE in
             1) SERVICES="rfs"; break;;
             2) SERVICES="frnsw"; break;;
@@ -221,7 +245,10 @@ else
     echo "  2) FRNSW  (Fire and Rescue NSW - 148.9625 MHz)"
     echo
     while true; do
-        read -p "Select option [1-2]: " SERVICE_CHOICE
+        if ! read -p "Select option [1-2]: " SERVICE_CHOICE; then
+            echo -e "${RED}Error: stdin closed before a service was selected.${NC}" >&2
+            exit 1
+        fi
         case $SERVICE_CHOICE in
             1) SERVICES="rfs"; break;;
             2) SERVICES="frnsw"; break;;
